@@ -37,10 +37,7 @@ const address_array = new mongoose.Schema({
         type: Number,
         default:''
       },
-      address:{
-       type:String,
-       default:''
-      },
+      
       is_default: {
           type: Boolean,
           default: 0,                       //1 is primary location
@@ -84,10 +81,15 @@ const address_array = new mongoose.Schema({
 })
 
 const Staff_Info_Schema= new mongoose.Schema({
+  
+    user_id:{
+       type:mongoose.Schema.Types.ObjectId,
+       require:true
+    },
    image:{
       type:String,
       default:'',
-      required: true
+     
   },
   address:[address_array],
   qualifiaction:[education_array]
@@ -97,6 +99,6 @@ const Staff_Info_Schema= new mongoose.Schema({
 )
 
 
-Staff_Info_Sc.index({ "address.locations_geometry": "2dsphere" });
+
 const StaffInfoModel = mongoose.model("staff", Staff_Info_Schema);
 module.exports = StaffInfoModel;

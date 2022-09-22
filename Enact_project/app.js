@@ -14,8 +14,16 @@ const RoleController = require('./controllers/RoleController');
 const Role = require('./model.js/Role');
 const Register = require('./model.js/Register')
 const Utill = require("./helper.js/Constant")
-//const views = require("./public/views")
+const ejs = require('ejs');
+var path = require("path"); 
+const StaffInfoModel = require('./model.js/basic_info_staff')
+
+//const views = require('./views')
+
+
+
 //const { RegisterController } = require('./controllers/Register');
+//const StaffDetailController = require('./controllers/StaffDetailController')
 
 
 const nodemailer = require("nodemailer")
@@ -25,13 +33,50 @@ const app = express();
 
 const port = process.env.PORT || 5000;
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }))
+app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json());
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, 'views')));
+//app.use('/', router);
+//app.use(express.static(path.join(__dirname, 'router')));
+
 //app.use(router);
 
+//const singleUpload = upload.single("image");
+const multer = require("multer")
+var storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, "./public/image/", function (err, succ) {
+            if (err)
+                throw err
+
+        });
+    },
+    filename: function (req, file, cb) {
+        var name = (Date.now() + Date.now() + file.originalname);
+        name = name.replace(/ /g, '-');
+        cb(null, name, function (err, succ1) {
+            if (err)
+                throw err
+
+        });
+    }
+});
+const upload = multer({storage: storage, limits: 1000000});
+
+
+
+
+
+app.use(express.static('./public/upload/images'))
+
+
+
+
 app.get('/', (req, res) => {
-    res.send('Welcome To BTG ');
+    res.send('Welcome To BTG ')
 
 })
 
@@ -43,24 +88,7 @@ var transporter = nodemailer.createTransport({
     }
 })
 
-//     const sendPasswordMail=async(name,email,password)=>{
-//         try {
-//           const transporter=  nodemailer.createTransport({
-//                host:'smtp.gmail.com',
-//                secure:false,
 
-//                auth:{
-//                    user:Utill.EMAIL,
-//                    pass:Utill.EMAIL_PASSWORD
-//                }
-//            })
-
-
-
-//         } catch (error) {
-//            console.log(error)
-//         }
-//    }
 
 //verifying token
 function verifyToken(req, res, next) {
@@ -78,7 +106,7 @@ function verifyToken(req, res, next) {
                 }
 
                 //console.log(decoded)
-                Person.findOne({ _id: decoded._id })
+                Register.findOne({ _id: decoded._id })
                     .then((data) => {
                         if (!data) {
                             return res.send("User not found")
@@ -141,37 +169,46 @@ app.post("/register", [
     body('first_name').exists().notEmpty().withMessage('First_Name is required.'),
     body('last_name').exists().notEmpty().withMessage('Last_Name is required.'),
 ], async (req, res) => {
-    console.log('yhn')
+    //console.log('yhn')
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).send({ message: "Validation Error.", error: errors.array() });
         }
-        //const spassword = await securePassword(req,body.password)
-        // let hashPassword = bcrypt.hashSync(password, 10);
+
+        const useremail = req.body.email
+        console.log(useremail)
+       
+
+        
 
         let insertData = {
             first_name: req.body.first_name,
             last_name: req.body.last_name,
             email: req.body.email,
-            // password:sendPasswordMail(),
+          
 
         }
-        //const email = req.body.email
-        const Data = await Role.create(insertData);
-        console.log(Data)
+        console.log(insertData)
 
-        let token = jwt.sign(Data.toJSON(), "asdfghjklqwertyuiozxcvbn", {
-            expiresIn: "10h"
+        const data = await Register.create(insertData);
+
+        let token = jwt.sign(data.toJSON(), "asdfghjklqwertyuiozxcvbn", {
+            expiresIn: "100h"
         }
         )
-        Data.id.token = token;
+        data.id.token = token;
+        console.log(data)
+        
+
+        
+        data.id.token = token;
         console.log(token)
         const mailOptions = {
             from: Utill.EMAIL,
             to: req.body.email,
             subject: Utill.EMAIL_SUBJECT,
-            html: '<p> Hii ' + req.body.first_name + ' , Please click the link and <a href="http://localhost:5000/set-password?token=' + token + '">Set password</a>'
+            html: '<p> Hii ' + req.body.first_name + ' , Please click the link and <a href="http://localhost:5000/register/'+ token + '">Set password</a>'
 
         }
         transporter.sendMail(mailOptions, function (error, info) {
@@ -183,10 +220,7 @@ app.post("/register", [
             }
         })
 
-        console.log(insertData)
-
-        const data = await Register.create(insertData);
-        console.log(data)
+       
 
 
         //console.log(createUser);
@@ -208,27 +242,334 @@ function makeid(length) {
     }
     return result;
 }
+//
+app.get('/register/:token', async (req, res) => {
+    
+    console.log(req.params)
+    console.log('params', req.params.token)
+    const token=req.params.token
+    jwt.verify(token, "asdfghjklqwertyuiozxcvbn", async function (err, decoded) {
+        if (err) {
+            console.log(err)
+            return res.send("Unauthorized User")
+        }
+        else{
+            console.log(decoded._id)
+            res.render('set_password',{id: decoded._id})
+           // console.log(req.params._id)
+        }
 
-app.get('/set-passsword/:token', verifyToken, async (req, res) => {
-    const token  = req.params
-    //check if this token is there or not 
-    if (token) {
-        jwt.verify(token, "asdfghjklqwertyuiozxcvbn", function (err, decodedToken) {
-            if (err) {
-                return res.status(400).json({ error: "Incorrect or Expired Link." })
-            }
-            res.render('/set-password')
+        //console.log(decoded)
+       
+    });
+   
+   
+   
+   
+    //check id is exist or not 
+    
+   
+    
+        
+    
+})
 
+app.post('/set_password',async(req,res)=>{
+    
+    try {
+        const password = req.body.password
+        const confirmPassword = req.body.confirmPassword
+        console.log("------>", password)
+        console.log('----------->', confirmPassword,req.body)
+
+      console.log(req.body._id)
+
+     
+           
+                //const isMatch = await bcrypt.compare(password, useremail.password)
+                let hashPassword = bcrypt.hashSync(password, 10);
+                console.log(hashPassword)
+
+               
+       
+
+                const setPassword = await Register.updateOne({
+
+                   _id:req.body._id
+                },
+                    
+                    
+                   {$set: { password: hashPassword } 
+                }
+                )
+                console.log(setPassword)
+                res.send({ statusCode: 200, message: "Updated sucessful" });
+            
+        
+    } catch (error) {
+        console.log(error)
+        
+    }
+})
+
+
+app.post('/basic_staff_info',verifyToken,upload.single('image'),async(req,res)=>{
+
+    try {
+        
+        let fields ={
+            user_id:req.userData._id,
+            image:req.body.filename
+        }
+
+        let checkExistProfile = await StaffInfoModel.findOne({user_id: req.userData._id})
+            if (!checkExistProfile) {
+                let UpdateProfile = await StaffInfoModel.updateOne({user_id: req.userData._id}, {$set: fields})
+                      StaffInfoModel.create(fields)
+                  
+                    return res.send({ sucess: 1,
+                        image_url: `http:// 192.168.1.17:5000/logo/${req.file.filename}`,
+                        UserDetails: fields})
+                  }else{
+                    res.send("user already exist")
+                  } 
+               
+         
+                  
+                
+            
+        } catch (e) {
+            console.log(e)
+            return res.send(e)
+
+        }
+        
+      
+       
+        
+    
+})
+
+
+//for testing purpose
+app.post("/upload",upload.single('image'), async (req, res) => {
+    console.log('asdfghj')
+    try {
+
+        let insertData = { logo: req.file.filename }
+        console.log(insertData);
+
+
+        res.json({
+            sucess: 1,
+            logo_url: `http:// 192.168.1.17:5000/logo/${req.file.filename}`,
+            logoDetails: insertData
         })
     }
+    catch (error) {
 
+        console.log(error)
+        res.status(400).send(error)
+    }
 
-   
 })
 
-app.post('/set-passsword/:token', async(req,res)=>{
-    const token= req.params
-})
+
+app.post("/addLocation",verifyToken,[
+    body('line1').exists().notEmpty().trim().withMessage('line1 Is Required.'),
+    body('line2').exists().notEmpty().trim().withMessage('line2  is required.'),
+    body('city').exists().notEmpty().trim().withMessage('city is required.'),
+    body('country').exists().notEmpty().trim().withMessage('country is required.'),
+    body('postal_code').exists().notEmpty().trim().withMessage('postalCode is required.')
+],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                 res.send("Please Enter Required Field", errors.array())
+
+            } else {
+                let locationData = {
+                    line1: req.body.line1,
+                    line2: req.body.line2,
+                    district: req.body.district,
+                    city: req.body.city,
+                    country: req.body.country,
+                    state: req.body.state,
+                    postal_code: req.body.postal_code,
+                    is_default: req.body.is_default ? req.body.is_default : 0,
+                    // lat: req.body.lat,
+                    // lng: req.body.lng,
+                    // locations_geometry: {
+                    //     type: "Point",
+                    //     coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]
+                    // }
+                }
+                console.log(locationData)
+                console.log(req.userData._id)
+                let insertLocation = await StaffInfoModel.updateOne({user_id: req.userData._id},
+                    {$push: {address: locationData}})
+                
+                return res.send({ sucess: 1,
+                    message: "Location added successfully",
+                    address:locationData})
+            }
+        } catch (e) {
+            console.log(e)
+
+            return  res.send(e)
+
+        }
+
+}
+)
+
+
+app.get("/getLocation", verifyToken, async (req, res) => {
+        try {
+            let getLocation = await StaffInfoModel.findOne({user_id: req.userData._id})
+            if (!getLocation) {
+                return res.send("No Record found")
+            }
+            console.log(getLocation.address)
+            return res.send({
+                msg:'Location Found Successfully',
+                location:getLocation.address
+        })
+
+        } catch (e) {
+            return res.send(e)
+
+        }
+    })
+
+app.post("/updateLocation",verifyToken,[
+        body('address_id').exists().notEmpty().trim().withMessage('Location Id is required.')],
+        async (req, res) => {
+            try {
+                const errors = validationResult(req);
+                if (!errors.isEmpty()) {
+                    res.send("Please Enter Required Field")
+    
+                } else {
+                    //  let getLocation=await CompanyProfileModel.updateOne({poster_id: req.userData._id})
+                    console.log('updateLocation')
+                    let locationData = ['line1', 'line2', 'district', 'city', 'country', 'state', 'postal_code', 'is_default', 'lat', 'lng']
+                    let setData = {}, appendLoc
+                    for (const loc of locationData) {
+                        if (req.body[loc]) {
+                            appendLoc = `address.$.${loc}`
+                            setData[appendLoc] = req.body[loc]
+                        }
+                    }
+                     console.log(setData)
+                     console.log("1111")
+                     console.log(req.userData._id)
+                     console.log(req.body.address_id)
+                     //console.log(address[0]._id)
+                    let UpdateProfile = await StaffInfoModel.updateOne({
+                            //_id:req.userData._id,
+
+                            "address._id": req.body.address_id
+                            
+                        }
+                        , {$set: setData})
+                        console.log(UpdateProfile)
+                    if (!UpdateProfile) {
+                        return res.send('Location Not Updated ')
+                    }
+                    return res.send(UpdateProfile)
+                }
+    
+            } catch (e) {
+                console.log(e)
+                return res.send(e)
+            }
+        }
+)
+
+
+
+// app.post("/setDefaultAddress",verifyToken,
+//     body('address_id').exists().notEmpty().trim().withMessage('Location Id  Required.'),
+//     async (req, res) => {
+//         try {
+//             const errors = validationResult(req);
+//             if (!errors.isEmpty()) {
+//                res.send("Please Enter Required Field")
+
+//             } else {
+//                 console.log(req.userData._id)
+//                 //  console.log(req.body)
+
+//                 let resetFalse = await StaffInfoModel.updateOne({poster_id: req.userData._id},
+//                     {$set: {"address.$[].is_default": false}})
+//                     console.log(resetFalse)
+//                 let setDefault = await StaffInfoModel.updateOne({
+//                         //poster_id: req.userData._id,
+//                         "address._id": req.body.address_id
+//                     },
+//                     {
+//                         $set: {"address.$.is_default": 1}
+//                     })
+
+//                 if (!setDefault) {
+//                     return res.send('Default Location Not Updated ')
+//                 }
+//                 return res.send('Default Location Set')
+//             }
+//         } catch (e) {
+//             return res.send( e)
+
+//         }
+//     }
+// )
+
+
+app.post("/addQualification",verifyToken,[
+    body('degree_name').exists().notEmpty().trim().withMessage('Degree Name  is required.'),
+    body('start_date').exists().notEmpty().trim().withMessage('Start Date is required.'),
+    body('end_date').exists().notEmpty().trim().withMessage('End Date is required.'),
+    body('location').exists().notEmpty().trim().withMessage('Location is required.'),
+    body('total_year').exists().notEmpty().trim().withMessage('Total Year is required.'),
+    body('university_name').exists().notEmpty().trim().withMessage('University Name is required.')],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.send("Please Enter Require Field ", errors.array())
+            } else {
+                let insertEducation = {
+                    degree_name: req.body.degree_name,
+                    start_date: req.body.start_date,
+                    end_date: req.body.end_date,
+                    location: req.body.location,
+                    total_year: req.body.total_year,
+                    university_name: req.body.university_name,
+                   
+                }
+                let addEducation = await StaffInfoModel.updateOne(
+                    {
+                    user_id: req.userData._id
+                }, 
+                    {
+                        $push: {qualifiaction: insertEducation}
+                    })
+                if (!addEducation){
+                    return res.send( "Education Not Added")
+                }
+                    return res.send(insertEducation)
+
+            }
+        } catch (e) {
+            console.log(e)
+            return res.send( e)
+
+        }
+    }
+
+)
+
 
 
 app.listen(port, () => {
