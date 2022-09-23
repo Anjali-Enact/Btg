@@ -45,26 +45,51 @@ app.use(express.static(path.join(__dirname, 'views')));
 //app.use(router);
 
 //const singleUpload = upload.single("image");
-const multer = require("multer")
-var storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, "./public/image/", function (err, succ) {
-            if (err)
-                throw err
+const multer = require("multer");
 
-        });
-    },
-    filename: function (req, file, cb) {
-        var name = (Date.now() + Date.now() + file.originalname);
-        name = name.replace(/ /g, '-');
-        cb(null, name, function (err, succ1) {
-            if (err)
-                throw err
 
-        });
+
+// SET STORAGE
+const storage = multer.diskStorage({
+    destination: './public/upload/images',
+    filename: (req, file, cb) => {
+        return cb(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`)
     }
-});
-const upload = multer({storage: storage, limits: 1000000});
+
+})
+
+var upload = multer({
+    storage: storage,fileFilter:function(req,file,callback){
+        if(
+            file.mimetype =='image/png' ||
+            file.mimetype == 'image/jpg' ||
+            file.mimetype == 'application/pdf'
+        ){
+            callback(null,true)
+        }else{
+            console.log('Only jpg, png and pdf file are supported')
+            callback(null, false)
+        }
+    },
+    
+
+}) 
+var uploadMultiple = upload.fields([{ name: 'file1', maxCount: 1 }, { name: 'file2', maxCount: 1 }, { name: 'file3', maxCount: 1 }, { name: 'file4', maxCount: 1 }, { name: 'file5', maxCount: 1 }])
+var type = upload.array('recfile');
+app.get("/uploadfile", type,(req, res) => {
+    res.render("uploadDocs");
+  });
+   
+  app.post('/uploadfile', uploadMultiple('file'), function (req, res, next) {
+   
+      if(req.files){
+          console.log(req.files)
+   
+          console.log("files uploaded")
+          res.render('/set_password')
+      }
+      
+  })
 
 
 
@@ -489,7 +514,24 @@ app.post("/updateLocation",verifyToken,[
 )
 
 
-
+// app.post("/uploadphoto",upload.single('myImage'),(req,res)=>{
+//     var img = fs.readFileSync(req.file.path);
+//     var encode_img = img.toString('base64');
+//     var final_img = {
+//         contentType:req.file.mimetype,
+//         image:new Buffer(encode_img,'base64')
+//     };
+//     imageModel.create(final_img,function(err,result){
+//         if(err){
+//             console.log(err);
+//         }else{
+//             console.log(result.img.Buffer);
+//             console.log("Saved To database");
+//             res.contentType(final_img.contentType);
+//             res.send(final_img.image);
+//         }
+//     })
+// })
 // app.post("/setDefaultAddress",verifyToken,
 //     body('address_id').exists().notEmpty().trim().withMessage('Location Id  Required.'),
 //     async (req, res) => {
@@ -532,12 +574,15 @@ app.post("/addQualification",verifyToken,[
     body('end_date').exists().notEmpty().trim().withMessage('End Date is required.'),
     body('location').exists().notEmpty().trim().withMessage('Location is required.'),
     body('total_year').exists().notEmpty().trim().withMessage('Total Year is required.'),
-    body('university_name').exists().notEmpty().trim().withMessage('University Name is required.')],
+    body('university_name').exists().notEmpty().trim().withMessage('University Name is required.'),
+],
     async (req, res) => {
         try {
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                return res.send("Please Enter Require Field ", errors.array())
+                console.log(errors)
+                 res.send("Please Enter Required Field")
+
             } else {
                 let insertEducation = {
                     degree_name: req.body.degree_name,
@@ -546,29 +591,55 @@ app.post("/addQualification",verifyToken,[
                     location: req.body.location,
                     total_year: req.body.total_year,
                     university_name: req.body.university_name,
-                   
+                    
                 }
+                console.log(insertEducation)
+                console.log(req.userData._id)
                 let addEducation = await StaffInfoModel.updateOne(
                     {
-                    user_id: req.userData._id
-                }, 
-                    {
-                        $push: {qualifiaction: insertEducation}
-                    })
-                if (!addEducation){
-                    return res.send( "Education Not Added")
+                        user_id: req.userData._id
+                    }, 
+                    {$push: {qualification: insertEducation}
                 }
-                    return res.send(insertEducation)
-
+                )
+                console.log(req.userData._id)
+                console.log(addEducation)
+                
+                res.send({ sucess: 1,
+                    message: "Qualificatiopn added successfully",
+                    qualification:insertEducation})
             }
         } catch (e) {
             console.log(e)
-            return res.send( e)
+
+            return  res.send(e)
 
         }
-    }
 
+}
 )
+
+// app.post("/uploadfile",verifyToken,async(req,res)=>{
+    
+ 
+
+// })
+
+
+
+
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+
 
 
 

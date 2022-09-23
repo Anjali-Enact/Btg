@@ -80,6 +80,30 @@ const address_array = new mongoose.Schema({
   
 })
 
+const documents_array = new mongoose.Schema({
+    Highschool_certificate:{
+        type:String,
+        default:''
+    },
+    Inter_certificate:{
+        type:String,
+        default:''
+    },
+    Graduation_certificate:{
+        type:String,
+        default:''
+    },
+
+    Post_Graduation_certificate:{
+        type:String,
+        default:''
+    },
+    Any_Certification:{
+        type:String,
+        default:''
+    }
+})
+
 const Staff_Info_Schema= new mongoose.Schema({
   
     user_id:{
@@ -91,8 +115,13 @@ const Staff_Info_Schema= new mongoose.Schema({
       default:'',
      
   },
+  resume:{
+    type:String,
+    default:'',
+  },
   address:[address_array],
-  qualifiaction:[education_array]
+  qualification:[education_array],
+  documents:[documents_array]
 },
 
 {timestamps: true}
