@@ -46,6 +46,7 @@ app.use(express.static(path.join(__dirname, 'views')));
 
 //const singleUpload = upload.single("image");
 const multer = require("multer");
+const ClinicInfoModel = require('./model.js/basic_clinic_info');
 
 
 
@@ -74,29 +75,30 @@ var upload = multer({
 
 
 })
-// var uploadMultiple = upload.fields([{ name: 'file1', maxCount: 1 }, { name: 'file2', maxCount: 1 }, { name: 'file3', maxCount: 1 }, { name: 'file4', maxCount: 1 }, { name: 'file5', maxCount: 1 }])
-// var type = upload.array('recfile');
-// app.get("/uploadfile", type, (req, res) => {
+//var uploadMultiple = upload.fields([{ name: 'file1', maxCount: 1 }, { name: 'file2', maxCount: 1 }, { name: 'file3', maxCount: 1 }, { name: 'file4', maxCount: 1 }, { name: 'file5', maxCount: 1 }])
+//var type = upload.array('recfile');
+// app.get("/uploadfile",  (req, res) => {
 //     res.render("uploadDocs");
 // });
 
-// app.post('/uploadfile',verifyToken,upload.array(uploadMultiple), function(req, res,err) {
+// app.post('/uploadfile',verifyToken,upload.array('recfile'), function(req, res,err) {
 
 //     try{
-//         if (err) {
-//             console.log("There was an error uploading the image.");
+
+//         let insertDocuments={
+//             file1: req.file.filename,
+//             file2 : req.file.filename,
+//             file3 : req.file.filename,
+//             file4 : req.file.filename,
+//             file5 : req.file.filename
 //         }
-//         res.json({
-//             success: true,
-//             message: 'Image uploaded!'
-//         });
     
 
 //     let addDocuments =  StaffInfoModel.updateOne(
 //         {
 //             user_id: req.userData._id
 //         },
-//         { $push: {documents: uploadMultiple } }
+//         { $push: {documents: insertDocuments } }
 //     )
 
 //     res.send({
@@ -199,6 +201,26 @@ app.post('/role', [body('role').exists().notEmpty().trim().withMessage('Role Is 
             console.log(error)
             res.send(error)
 
+        }
+    })
+
+    app.get('/get_role',verifyToken, async(req,res)=>{
+        
+        try {
+            let getRole = await Role.findOne
+            if (!getRole) {
+                return res.send("No Record found")
+            }
+            console.log(getRole)
+            return res.send({
+                msg: ' Found Successfully',
+                role: getRole
+            })
+    
+        } catch (e) {
+            console.log(e)
+            return res.send(e)
+    
         }
     })
 
@@ -362,10 +384,11 @@ app.post('/set_password', async (req, res) => {
 app.post('/basic_staff_info', verifyToken, upload.single('image'), async (req, res) => {
 
     try {
+        console.log(req.file.filename)
 
         let fields = {
             user_id: req.userData._id,
-            //image: req.body.filename
+            image: req.file.filename
         }
 
         let checkExistProfile = await StaffInfoModel.findOne({ user_id: req.userData._id })
@@ -446,12 +469,12 @@ app.post("/addLocation", verifyToken, [
                     state: req.body.state,
                     postal_code: req.body.postal_code,
                     is_default: req.body.is_default ? req.body.is_default : 0,
-                    // lat: req.body.lat,
-                    // lng: req.body.lng,
-                    // locations_geometry: {
-                    //     type: "Point",
-                    //     coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]
-                    // }
+                    lat: req.body.lat,
+                    lng: req.body.lng,
+                    locations_geometry: {
+                        type: "Point",
+                        coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]
+                    }
                 }
                 console.log(locationData)
                 console.log(req.userData._id)
@@ -651,11 +674,106 @@ app.post("/addQualification", verifyToken, [
     }
 )
 
-// app.post("/uploadfile",verifyToken,async(req,res)=>{
+app.post('/basic_info_clinic',verifyToken,[
+    body('service').exists().notEmpty().trim().withMessage('line1 Is Required.'),
+    body('logo').exists().notEmpty().trim().withMessage('line2  is required.'),
+    //body('clinic_locatiom').exists().notEmpty().trim().withMessage('city is required.'),
+] ,upload.single('logo'),async(req,res)=>{
+
+    try {
+        // const errors = validationResult(req);
+        // if (!errors.isEmpty()) {
+        //     console.log(errors)
+        //     res.send("Please Enter Required Field")
+
+        // } else {
+            console.log(req.file.filename)
+            let insertData = {
+                service: req.body.service,
+                logo: req.file.filename,
+                
+
+            }
+            console.log(insertData)
+            let checkExistProfile = await ClinicInfoModel.findOne({ user_id: req.userData._id })
+            if (!checkExistProfile) {
+                let UpdateProfile = await ClinicInfoModel.updateOne({ user_id: req.userData._id }, { $set: insertData })
+                ClinicInfoModel.create(insertData)
+    
+                res.send({
+                    sucess: 1,
+                    logo: `http://192.168.1.17:5000/${req.file.filename}`,
+                    ClinicDetails: insertData
+                })
+            } else {
+                res.send("user already exist")
+            }
 
 
+        
+        
+    } catch (error) {
+        console.log(error)
+        res.send(error)
+        
+    }
 
-// })
+})
+
+
+app.post("/addClinicLocation", verifyToken, [
+    body('line1').exists().notEmpty().trim().withMessage('line1 Is Required.'),
+    body('line2').exists().notEmpty().trim().withMessage('line2  is required.'),
+    body('city').exists().notEmpty().trim().withMessage('city is required.'),
+    body('country').exists().notEmpty().trim().withMessage('country is required.'),
+    body('postal_code').exists().notEmpty().trim().withMessage('postalCode is required.')
+],
+    async (req, res) => {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                res.send("Please Enter Required Field", errors.array())
+
+            } else {
+                let locationData = {
+                    line1: req.body.line1,
+                    line2: req.body.line2,
+                    district: req.body.district,
+                    city: req.body.city,
+                    country: req.body.country,
+                    state: req.body.state,
+                    postal_code: req.body.postal_code,
+                    is_default: req.body.is_default ? req.body.is_default : 0,
+                    lat: req.body.lat,
+                    lng: req.body.lng,
+                    locations_geometry: {
+                        type: "Point",
+                        coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]
+                    }
+                }
+                console.log(locationData)
+                console.log(req.userData._id)
+                let insertClinicLocation = await ClinicInfoModel.updateOne(
+                    {
+                        user_id: req.userData._id
+                    },
+                    { $push: { clinic_location: locationData } })
+
+                return res.send({
+                    sucess: 1,
+                    message: "Location added successfully",
+                    clinic_location: locationData
+                })
+            }
+        } catch (e) {
+            console.log(e)
+
+            return res.send(e)
+
+        }
+
+    }
+)
 
 
 
