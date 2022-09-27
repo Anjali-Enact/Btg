@@ -204,18 +204,11 @@ app.post('/role', [body('role').exists().notEmpty().trim().withMessage('Role Is 
         }
     })
 
-    app.get('/get_role',verifyToken, async(req,res)=>{
+    app.get('/get_role', async(req,res)=>{
         
         try {
-            let getRole = await Role.findOne
-            if (!getRole) {
-                return res.send("No Record found")
-            }
-            console.log(getRole)
-            return res.send({
-                msg: ' Found Successfully',
-                role: getRole
-            })
+         const roleData = await Role.find()
+         res.send(roleData)
     
         } catch (e) {
             console.log(e)
@@ -778,6 +771,84 @@ app.post("/addClinicLocation", verifyToken, [
 
 
 
+
+exports.createJob = [
+    body('posted_by').exists().notEmpty().withMessage('Posted by is required.'),
+    body('job_title').exists().notEmpty().withMessage('Job Title is required.'),
+    body('job_location').isArray().withMessage('Location is required.'),
+    body('job_type').exists().notEmpty().withMessage('Job Type is required.'),
+    body('skills').isArray().withMessage('Skills is required Along With Skill and Year'),
+    body('year_of_experience').exists().notEmpty().withMessage('Experience Level Is Required.'),
+    body('expire_date').exists().notEmpty().withMessage('expire date is required.'),
+    async (req, res) => {
+        try {
+            console.log('1111-----------')
+            console.log(req.body)
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.send( "Please Enter Required Field", errors.array())
+
+            } else {
+                //add check not created
+
+                //to check is company profile creted if not first create company
+
+                let CreateJob = {
+                    posted_by: req.userData.account_type,
+                    job_title: req.body.job_title,
+                    job_type: req.body.job_type,
+                    skills: req.body.skills,
+                    expire_date:req.body.expire_date,
+                    year_of_experience: req.body.experience_level,
+                    job_location: req.body.job_location
+
+                }
+
+                let location = req.body.location
+                const addLocation = (job_id) => {
+                    location.map((element) => {
+                        const insertData = {
+                            line1 :element.line1,
+                            line2:element.line12,
+                            country: element.country,
+                            district:element.district,
+                            city:element.city,
+                            state:element.state,
+                            lng: element.lng,
+                            lat: element.lat,
+                            location: {
+                                type: "Point",
+                                coordinates: [parseFloat(element.lng), parseFloat(element.lat)]
+                            }
+                        }
+                        JobLocationModel.create(insertData)
+                            .then((data) => {
+                                console.log('location added ')
+
+                            })
+                            .catch((e) => {
+                                console.log(e.message)
+                                return Response.InternalServerError(res, e)
+                            })
+                    })
+
+                }
+                PostJobModel.create(CreateJob)
+                    .then((data) => {
+                        addLocation(data._id)
+                        return Response.SuccessResponseWithData(res, "Job created Successfully", data)
+                    })
+                    .catch((e) => {
+                        return Response.InternalServerError(res, e)
+                    })
+            }
+        } catch (e) {
+            console.log(e)
+            return Response.SomethingWentWrong(res, e)
+
+        }
+    }
+]
 
 
 

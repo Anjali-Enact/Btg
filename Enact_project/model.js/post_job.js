@@ -33,16 +33,7 @@ const address_array = new mongoose.Schema({
           type: String,
           default:''
       },
-      postal_code:{
-        type: Number,
-        default:''
-      },
-      
-      is_default: {
-          type: Boolean,
-          default: 0,                       //1 is primary location
-          enum: [0, 1]
-      },
+     
       lat:{
         type:String,
         default:''
@@ -61,6 +52,11 @@ const skills_array=new mongoose.Schema({
  })
 
  const Post_Job_Schema = new moongoose.Schema({
+
+    job_type:{
+      type:String,
+      required:true
+    },
 
     posted_by:{
         type:String,
@@ -81,7 +77,7 @@ const skills_array=new mongoose.Schema({
         enum :['part_time', 'full_time', 'hybrid', ]
      },
 
-     job_address:[address_array],
+     job_location:[address_array],
      skills:[skills_array]
 
  }, {timestamps: true})
