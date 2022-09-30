@@ -9,8 +9,8 @@
   </head>
   <body>
       <div class="container">
-          <h1 class="text-center">Multer Multiple Field File Upload Example</h1>
-          <form action="/uploadfile" id="post" method="post" >
+          <h1 class="text-center">Documents Upload</h1>
+          <form action="/uploadfile" id="post" method="post" enctype="multipart/form-data" >
             <div class="form-group">
               <label for="file1">HighSchool_Marksheet:</label>
               <input type="file" name="file1" id="" required class="form-control">
@@ -21,15 +21,15 @@
               </div>
               <div class="form-group">
                 <label for="file3">Graduation_marksheet:</label>
-                <input type="file" name="file1" id="" required class="form-control">
+                <input type="file" name="file3" id="" required class="form-control">
               </div>
               <div class="form-group">
                   <label for="file4">Post_graduation_marksheet:</label>
-                  <input type="file" name="file2" id="" required class="form-control">
+                  <input type="file" name="file4" id=""  class="form-control">
                 </div>
                 <div class="form-group">
                     <label for="file5">Any Certification:</label>
-                    <input type="file" name="file2" id="" required class="form-control">
+                    <input type="file" name="file5" id="" required class="form-control">
                   </div>
               <div class="form-group">
                   <button class="btn btn-danger btn-block">

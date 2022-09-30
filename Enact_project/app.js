@@ -19,6 +19,7 @@ var path = require("path");
 const StaffInfoModel = require('./model.js/basic_info_staff')
 const Image = require('./model.js/image')
 const PostJobModel = require('./model.js/post_job')
+const uploadfile = require('express-fileupload')
 
 //const views = require('./views')
 
@@ -77,43 +78,37 @@ var upload = multer({
 
 
 })
-//var uploadMultiple = upload.fields([{ name: 'file1', maxCount: 1 }, { name: 'file2', maxCount: 1 }, { name: 'file3', maxCount: 1 }, { name: 'file4', maxCount: 1 }, { name: 'file5', maxCount: 1 }])
-//var type = upload.array('recfile');
-// app.get("/uploadfile",  (req, res) => {
-//     res.render("uploadDocs");
-// });
 
-// app.post('/uploadfile',verifyToken,upload.array('recfile'), function(req, res,err) {
+var multipleUpload = upload.fields([{name:'file1'},{name:'file2'},{name:'file3'},{name:'file4'},{name:'file5'}])
 
-//     try{
+app.post('/uploadfile',verifyToken, multipleUpload,async(req,res)=>{
 
-//         let insertDocuments={
-//             file1: req.file.filename,
-//             file2 : req.file.filename,
-//             file3 : req.file.filename,
-//             file4 : req.file.filename,
-//             file5 : req.file.filename
-//         }
-    
+    try {
+        if(req.files){
+            console.log("Files uploaded")
+            console.log(req.files)
+            console.log(req.userData._id)
 
-//     let addDocuments =  StaffInfoModel.updateOne(
-//         {
-//             user_id: req.userData._id
-//         },
-//         { $push: {documents: insertDocuments } }
-//     )
-
-//     res.send({
-//         sucess: 1,
-//         message: "Documents added successfully",
-//         qualification: insertDocuments
-//     })
-// }catch(e){
-//     console.log(e)
-// }
-
-
-// })
+            let insertDocs= await StaffInfoModel.updateOne(
+                {
+                    user_id: req.userData._id
+                },
+                { $push: { documents: req.files.filename} 
+            })
+            console.log(insertDocs)
+            res.send({
+                "success":1,
+                "message":"Files Uploaded"
+            })
+        }
+    } catch (error) {
+        console.log(error)
+        res.send(error)
+    }
+})
+app.get('/uploadfile',async(req,res)=>{
+    res.render('uploadfile')
+})
 
 
 

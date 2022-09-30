@@ -110,7 +110,7 @@ const Staff_Info_Schema= new mongoose.Schema({
        type:mongoose.Schema.Types.ObjectId,
        require:true
     },
-   image:{
+   file:{
       type:String,
       default:'',
      
