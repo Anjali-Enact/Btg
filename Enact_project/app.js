@@ -17,6 +17,8 @@ const Utill = require("./helper.js/Constant")
 const ejs = require('ejs');
 var path = require("path");
 const StaffInfoModel = require('./model.js/basic_info_staff')
+const Image = require('./model.js/image')
+const PostJobModel = require('./model.js/post_job')
 
 //const views = require('./views')
 
@@ -374,6 +376,43 @@ app.post('/set_password', async (req, res) => {
 })
 
 
+
+app.post("/login", async (req, res) => {
+    try {
+
+        const email = req.body.email;
+        const password = req.body.password;
+        //console.log(req.body)
+        //console.log(password);
+        const useremail = await Register.findOne({ email: email })
+
+        if (!useremail) {
+            return res.status(200).json({ statusCode: 400, message: "wrong email or password" })
+        }
+
+        const isMatch = await bcrypt.compare(password, useremail.password);
+
+        let token = jwt.sign(useremail.toJSON(), "asdfghjklqwertyuiozxcvbn", {
+            expiresIn: "100h"
+        }
+        )
+        useremail.id.token = token;
+
+        // console.log(token);
+        //console.log("Secret",JWT_KEY);
+
+        if (isMatch) {
+            res.status(200).json({ statusCode: 200, message: "login sucessful", userDetails: useremail, token: token })
+        } else {
+            res.send("Invalid Login details");
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(400).send(error)
+    }
+})
+
+
 app.post('/basic_staff_info', verifyToken, upload.single('image'), async (req, res) => {
 
     try {
@@ -423,7 +462,7 @@ app.post("/upload", upload.single('image'), async (req, res) => {
         let insertData = { logo: req.file.filename }
         console.log(insertData);
 
-
+        const data = await Image.create(insertData);
         res.json({
             sucess: 1,
             logo_url: `http:// 192.168.1.17:5000/logo/${req.file.filename}`,
@@ -772,21 +811,21 @@ app.post("/addClinicLocation", verifyToken, [
 
 
 
-exports.createJob = [
-    body('posted_by').exists().notEmpty().withMessage('Posted by is required.'),
+app.post('/postJob',verifyToken,[
+   //body('posted_by').exists().notEmpty().withMessage('Posted by is required.'),
     body('job_title').exists().notEmpty().withMessage('Job Title is required.'),
-    body('job_location').isArray().withMessage('Location is required.'),
+  
     body('job_type').exists().notEmpty().withMessage('Job Type is required.'),
-    body('skills').isArray().withMessage('Skills is required Along With Skill and Year'),
+   
     body('year_of_experience').exists().notEmpty().withMessage('Experience Level Is Required.'),
-    body('expire_date').exists().notEmpty().withMessage('expire date is required.'),
+    body('expire_date').exists().notEmpty().withMessage('expire date is required.')],
     async (req, res) => {
         try {
             console.log('1111-----------')
             console.log(req.body)
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                return res.send( "Please Enter Required Field", errors.array())
+                return res.send( "Please Enter Required Field")
 
             } else {
                 //add check not created
@@ -794,65 +833,77 @@ exports.createJob = [
                 //to check is company profile creted if not first create company
 
                 let CreateJob = {
-                    posted_by: req.userData.account_type,
+                    posted_by: req.userData._id,
                     job_title: req.body.job_title,
                     job_type: req.body.job_type,
                     skills: req.body.skills,
                     expire_date:req.body.expire_date,
-                    year_of_experience: req.body.experience_level,
-                    job_location: req.body.job_location
+                    year_of_experience: req.body.year_of_experience,
+                    job_location: req.body.job_location,
+                    address_id:req.body.address_id,
+                    lat: req.body.lat,
+                    lng: req.body.lng,
+                    location: {
+                        type: "Point",
+                        coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]
+                    }
 
                 }
 
-                let location = req.body.location
-                const addLocation = (job_id) => {
-                    location.map((element) => {
-                        const insertData = {
-                            line1 :element.line1,
-                            line2:element.line12,
-                            country: element.country,
-                            district:element.district,
-                            city:element.city,
-                            state:element.state,
-                            lng: element.lng,
-                            lat: element.lat,
-                            location: {
-                                type: "Point",
-                                coordinates: [parseFloat(element.lng), parseFloat(element.lat)]
-                            }
-                        }
-                        JobLocationModel.create(insertData)
-                            .then((data) => {
-                                console.log('location added ')
-
-                            })
-                            .catch((e) => {
-                                console.log(e.message)
-                                return Response.InternalServerError(res, e)
-                            })
-                    })
-
-                }
-                PostJobModel.create(CreateJob)
-                    .then((data) => {
-                        addLocation(data._id)
-                        return Response.SuccessResponseWithData(res, "Job created Successfully", data)
-                    })
-                    .catch((e) => {
-                        return Response.InternalServerError(res, e)
-                    })
+               console.log(CreateJob)
+                const post = await PostJobModel.create(CreateJob)
+                res.json({
+                    "success":"1", 
+                    "message":"Job create successful"
+                })
+                   
             }
-        } catch (e) {
+        } catch(e) {
+           
             console.log(e)
-            return Response.SomethingWentWrong(res, e)
+            res.send(e)
 
         }
     }
-]
+)
 
 
 
+app.post('/filterOnJobs', async(req,res)=>{
+    let page = 1
+            if (req.params.page)
+                page = parseInt(req.params.page)
+            let resPerPage = 4;
+            if (req.params.resPerPage) {
+                resPerPage = req.params.resPerPage;
+                resPerPage = parseInt(resPerPage);
+            }
+            let skip = resPerPage * page - resPerPage
+            const distance = req.body.distance
+            let filterJob = await PostJobModel.aggregate([
+                {
+                    $geoNear: {
+                        near: {type: "Point", coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]},
+                        key: "location",
+                        distanceField: "distance",
+                        maxDistance: distance * 1000, 
+                        includeLocs: "dist.location",    //2000 * 1000=2000km
+                        //distanceMultiplier: 1 / 1000,
+                        spherical: true,
+                    }
+                },
+                {$skip: skip},
+                    {$limit: resPerPage},
+            ])
+            console.log(filterJob)
 
+            if (filterJob.length === 0){
+            return res.send("No Job Found")
+            }else{
+             return res.send("Job Found Sucessfully")
+            }
+
+            })
 
 
 
